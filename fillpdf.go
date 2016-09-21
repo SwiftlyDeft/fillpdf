@@ -32,6 +32,49 @@ import (
 // This is a key value map.
 type Form map[string]interface{}
 
+func FillAndEncode(form Form, formPDFFile, encodedPDFFile, ownerPassword, userPassword string, overwrite ...bool) (err error) {
+	// Fill in the form
+	tempEncodedFile := fmt.Sprintf("temp-%s", encodedPDFFile)
+	var err error = Fill(form, formPDFFile, tempEncodedFile, overwrite)
+
+	if err != nil {
+		tmpDir := createTempDir()
+		outputFile := filepath.Clean(tmpDir + "/output-secure.pdf")
+		// Go an apply the password
+		// Create the pdftk command line arguments.
+		var args []string
+		if (len(userPassword) > 0) {
+			args = []string{
+				formPDFFile,
+				tempEncodedFile,
+				"output", outputFile,
+				"owner_pw", ownerPassword,
+				"user_pw", userPassword,
+			}
+		} else {
+			args = []string{
+				formPDFFile,
+				tempEncodedFile,
+				"output", outputFile,
+				"owner_pw", ownerPassword,
+			}
+		}
+
+		err = runCommandInPath(tmpDir, "pdftk", args...)
+		if err != nil {
+			return fmt.Errorf("pdftk error: %v", err)
+		}
+
+
+		// On success, copy the output file to the final destination.
+		err = copyFile(outputFile, encodedPDFFile)
+		if err != nil {
+			return fmt.Errorf("failed to copy created output PDF to final destination: %v", err)
+		}
+	}
+	return err
+}
+
 // Fill a PDF form with the specified form values and create a final filled PDF file.
 // One variadic boolean specifies, whenever to overwrite the destination file if it exists.
 func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err error) {
@@ -120,6 +163,24 @@ func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err er
 	}
 
 	return nil
+}
+
+func createTempDir() string {
+	// Create a temporary directory.
+	tmpDir, err := ioutil.TempDir("", "fillpdf-")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %v", err)
+	}
+
+	// Remove the temporary directory on defer again.
+	defer func() {
+		errD := os.RemoveAll(tmpDir)
+		// Log the error only.
+		if errD != nil {
+			log.Printf("fillpdf: failed to remove temporary directory '%s' again: %v", tmpDir, errD)
+		}
+	}()
+	return tmpDir
 }
 
 func createFdfFile(form Form, path string) error {

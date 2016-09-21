@@ -1,3 +1,10 @@
+# SwiftlyDeft's FillPDF Extension
+This is an extension of https://github.com/desertbit/fillpdf, thank you to desertbit's work on fillpdf.
+I needed to add some more functionality around FillPDF:
+* Adding a password to the filled out pdf...
+
+* Add a password to a filled out pdf *
+
 # FillPDF
 
 FillPDF is a golang library to easily fill PDF forms. This library uses the pdftk utility to fill the PDF forms with fdf data.
