@@ -1,5 +1,5 @@
 # SwiftlyDeft's FillPDF Extension
-This is an extension of https://github.com/desertbit/fillpdf, thank you to desertbit's work on fillpdf.
+This is an extension of https://github.com/desertbit/fillpdf, thank you to desertbit's for their work on fillpdf.
 I needed to add some more functionality around FillPDF:
 * Adding a password to the filled out pdf...
 
