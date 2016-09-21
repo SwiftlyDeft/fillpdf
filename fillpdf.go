@@ -32,12 +32,12 @@ import (
 // This is a key value map.
 type Form map[string]interface{}
 
-func FillAndEncode(form Form, formPDFFile, encodedPDFFile, ownerPassword, userPassword string, overwrite ...bool) (err error) {
+func FillAndEncode(form Form, formPDFFile, encodedPDFFile, ownerPassword, userPassword string, overwrite ...bool) (fillError error) {
 	// Fill in the form
 	tempEncodedFile := fmt.Sprintf("temp-%s", encodedPDFFile)
-	var err error = Fill(form, formPDFFile, tempEncodedFile, overwrite)
+	fillError = Fill(form, formPDFFile, tempEncodedFile, true)
 
-	if err != nil {
+	if fillError != nil {
 		tmpDir := createTempDir()
 		outputFile := filepath.Clean(tmpDir + "/output-secure.pdf")
 		// Go an apply the password
@@ -60,19 +60,19 @@ func FillAndEncode(form Form, formPDFFile, encodedPDFFile, ownerPassword, userPa
 			}
 		}
 
-		err = runCommandInPath(tmpDir, "pdftk", args...)
-		if err != nil {
-			return fmt.Errorf("pdftk error: %v", err)
+		fillError = runCommandInPath(tmpDir, "pdftk", args...)
+		if fillError != nil {
+			return fmt.Errorf("pdftk error: %v", fillError)
 		}
 
 
 		// On success, copy the output file to the final destination.
-		err = copyFile(outputFile, encodedPDFFile)
-		if err != nil {
-			return fmt.Errorf("failed to copy created output PDF to final destination: %v", err)
+		fillError = copyFile(outputFile, encodedPDFFile)
+		if fillError != nil {
+			return fmt.Errorf("failed to copy created output PDF to final destination: %v", fillError)
 		}
 	}
-	return err
+	return fillError
 }
 
 // Fill a PDF form with the specified form values and create a final filled PDF file.
@@ -169,7 +169,7 @@ func createTempDir() string {
 	// Create a temporary directory.
 	tmpDir, err := ioutil.TempDir("", "fillpdf-")
 	if err != nil {
-		return fmt.Errorf("failed to create temporary directory: %v", err)
+		return fmt.Sprintf("failed to create temporary directory: %v", err)
 	}
 
 	// Remove the temporary directory on defer again.
