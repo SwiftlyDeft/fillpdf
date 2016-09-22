@@ -32,52 +32,10 @@ import (
 // This is a key value map.
 type Form map[string]interface{}
 
-func FillAndEncode(form Form, formPDFFile, encodedPDFFile, ownerPassword, userPassword string, overwrite ...bool) (fillError error) {
-	// Fill in the form
-	tempEncodedFile := fmt.Sprintf("temp-%s", encodedPDFFile)
-	fillError = Fill(form, formPDFFile, tempEncodedFile, true)
-
-	if fillError != nil {
-		tmpDir := createTempDir()
-		outputFile := filepath.Clean(tmpDir + "/output-secure.pdf")
-		// Go an apply the password
-		// Create the pdftk command line arguments.
-		var args []string
-		if (len(userPassword) > 0) {
-			args = []string{
-				formPDFFile,
-				tempEncodedFile,
-				"output", outputFile,
-				"owner_pw", ownerPassword,
-				"user_pw", userPassword,
-			}
-		} else {
-			args = []string{
-				formPDFFile,
-				tempEncodedFile,
-				"output", outputFile,
-				"owner_pw", ownerPassword,
-			}
-		}
-
-		fillError = runCommandInPath(tmpDir, "pdftk", args...)
-		if fillError != nil {
-			return fmt.Errorf("pdftk error: %v", fillError)
-		}
-
-
-		// On success, copy the output file to the final destination.
-		fillError = copyFile(outputFile, encodedPDFFile)
-		if fillError != nil {
-			return fmt.Errorf("failed to copy created output PDF to final destination: %v", fillError)
-		}
-	}
-	return fillError
-}
-
 // Fill a PDF form with the specified form values and create a final filled PDF file.
 // One variadic boolean specifies, whenever to overwrite the destination file if it exists.
-func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err error) {
+
+func Fill(form Form, formPDFFile, destPDFFile , ownerPassword, userPassword string, overwrite ...bool) (err error) {
 	// Get the absolute paths.
 	formPDFFile, err = filepath.Abs(formPDFFile)
 	if err != nil {
@@ -141,6 +99,30 @@ func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err er
 		return fmt.Errorf("pdftk error: %v", err)
 	}
 
+	// Run PDFTK again to add a password
+	var passwordArgs []string
+	passwordOutputFile := filepath.Clean(tmpDir + "/output-password.pdf")
+	if (len(userPassword) > 0) {
+		passwordArgs = []string{
+			outputFile,
+			"output", passwordOutputFile,
+			"owner_pw", ownerPassword,
+			"user_pw", userPassword,
+		}
+	} else {
+		passwordArgs = []string{
+			outputFile,
+			"output", passwordOutputFile,
+			"owner_pw", ownerPassword,
+		}
+	}
+
+
+	err = runCommandInPath("", "pdftk", passwordArgs...)
+	if err != nil {
+		return fmt.Errorf("pdftk password error: %v", err)
+	}
+
 	// Check if the destination file exists.
 	e, err = exists(destPDFFile)
 	if err != nil {
@@ -157,7 +139,7 @@ func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err er
 	}
 
 	// On success, copy the output file to the final destination.
-	err = copyFile(outputFile, destPDFFile)
+	err = copyFile(passwordOutputFile, destPDFFile)
 	if err != nil {
 		return fmt.Errorf("failed to copy created output PDF to final destination: %v", err)
 	}
@@ -167,12 +149,13 @@ func Fill(form Form, formPDFFile, destPDFFile string, overwrite ...bool) (err er
 
 func createTempDir() string {
 	// Create a temporary directory.
-	tmpDir, err := ioutil.TempDir("", "fillpdf-")
+	tmpDir, err := ioutil.TempDir("", "swfillpdf-")
 	if err != nil {
 		return fmt.Sprintf("failed to create temporary directory: %v", err)
 	}
 
 	// Remove the temporary directory on defer again.
+
 	defer func() {
 		errD := os.RemoveAll(tmpDir)
 		// Log the error only.
@@ -180,6 +163,7 @@ func createTempDir() string {
 			log.Printf("fillpdf: failed to remove temporary directory '%s' again: %v", tmpDir, errD)
 		}
 	}()
+
 	return tmpDir
 }
 

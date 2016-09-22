@@ -2,8 +2,7 @@ package main
 
 import (
 	"log"
-
-	"github.com/desertbit/fillpdf"
+	"../"
 )
 
 func main() {
@@ -18,4 +17,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+
+	err = fillpdf.FillAndEncode(form, "form.pdf", "filled-pass.pdf", "Password", "UserPassword", true)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
